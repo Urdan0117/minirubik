@@ -6,3 +6,5 @@ mini
 ida
 verify
 *.log
+gen_tables
+build/
