@@ -105,8 +105,11 @@ a3_mul_done:
 
 # ---------- B. IDA* search ----------
 # Frame layout, 16 bytes per depth: +0 p, +2 o (the state at this depth),
-# +4 cp, +6 co (the child being turned), +8 face (0..2, 3 = done),
-# +9 turn (quarter turns applied to cp, 0..3).
+# +4 cp, +6 co (the child being turned), +8 face, +9 turn.
+# The current depth's cp, co, face and turn live in registers:
+#   a3 cp   a4 co   a5 face (0..2, 3 = done)   a6 turn (0..3)
+# They go to the frame only when the search descends, and come back
+# from it when the search backs up.
         la    s7, frames
         la    s8, perm_base
         la    s9, orient_base
@@ -121,77 +124,69 @@ b_bound:
         mv    s6, s7
         sh    s1, 0(s6)
         sh    s2, 2(s6)
+        mv    a3, s1                   # cp, co start at the root state
+        mv    a4, s2
         jal   enter
 b_loop:
-        lhu   t0, 0(s6)
-        lhu   t1, 2(s6)
-        or    t0, t0, t1
-        beqz  t0, b_found              # (B1) solved when p and o are both 0
+        or    t0, a3, a4           # (V1) the state at this depth is
+        beqz  t0, b_found              #      still in cp, co: solved?
 b_next:
-        lbu   t2, 9(s6)
         li    t3, 3
-        bne   t2, t3, b_turn           # this face still has turns left
-        lbu   t2, 8(s6)                # all three turns tried: next face
-        addi  t2, t2, 1
-        sb    t2, 8(s6)
-        sb    zero, 9(s6)
-        lhu   t0, 0(s6)                # restart cp, co from this depth's state
-        sh    t0, 4(s6)
-        lhu   t0, 2(s6)
-        sh    t0, 6(s6)
+        bne   a6, t3, b_turn         # (V2) this face still has turns left
+        addi  a5, a5, 1                # all three turns tried: next face
+        li    a6, 0
+        lhu   a3, 0(s6)             # (V3) restart cp from this depth's p
+        lhu   a4, 2(s6)                #      and co from its o
         jal   skip_last
 b_turn:
-        lbu   t2, 8(s6)
-        li    t3, 3                 # (B2) face value meaning "all faces tried"
-        beq   t2, t3, b_back
-        lhu   a0, 4(s6)                # one more quarter turn on cp, co
-        lhu   a1, 6(s6)
-        mv    a2, t2
+        li    t3, 3
+        beq   a5, t3, b_back
+        mv    a0, a3                   # one more quarter turn on cp, co
+        mv    a1, a4
+        mv    a2, a5
         jal   qturn
-        sh    a0, 4(s6)
-        sh    a1, 6(s6)
-        lbu   t2, 9(s6)
-        addi  t2, t2, 1
-        sb    t2, 9(s6)
-        jal   h                        # a0 = h(child)
+        mv    a3, a0
+        mv    a4, a1
+        addi  a6, a6, 1
+        jal   h                        # a0 = h(child); a0, a1 still hold it
         add   a0, a0, s5
-        addi  a0, a0, 1             # (B3) a0 = depth + 1 + h(child)
-        bgt   a0, s4, b_next           # (B4) prune if that exceeds the bound
-        lhu   t0, 4(s6)                # descend into the child
-        lhu   t1, 6(s6)
+        addi  a0, a0, 1
+        bgt   a0, s4, b_next           # prune
+        sh    a3, 4(s6)                # descend: save this depth's progress
+        sh    a4, 6(s6)
+        sb    a5, 8(s6)             # (V4)
+        sb    a6, 9(s6)
         addi  s5, s5, 1
-        addi  s6, s6, 16             # (B5) next frame
-        sh    t0, 0(s6)
-        sh    t1, 2(s6)
+        addi  s6, s6, 16
+        sh    a3, 0(s6)                # the child is the new depth's state,
+        sh    a4, 2(s6)                # and a3, a4 already hold it
         jal   enter
         j     b_loop
 b_back:
-        addi  s5, s5, -1               # every face tried: back up one depth
+        addi  s5, s5, -1               # back up one depth
         addi  s6, s6, -16
-        bgez  s5, b_next               # (B6) continue there if depth >= 0
-        addi  s4, s4, 1                # the whole tree failed: raise the bound
+        bltz  s5, b_raise              # (V5) depth < 0: the whole tree failed
+        lhu   a3, 4(s6)             # (V6) restore the parent's progress
+        lhu   a4, 6(s6)
+        lbu   a5, 8(s6)
+        lbu   a6, 9(s6)
+        j     b_next
+b_raise:
+        addi  s4, s4, 1                # raise the bound and start over
         j     b_bound
 
 # enter: start trying children at the current depth.
 enter:
-        lhu   t0, 0(s6)
-        sh    t0, 4(s6)
-        lhu   t0, 2(s6)
-        sh    t0, 6(s6)
-        sb    zero, 8(s6)
-        sb    zero, 9(s6)
-# skip_last: skip the face of the move that led here; turning it again
-# would merge with that move or cancel it.
+        li    a5, 0
+        li    a6, 0
+# skip_last: skip the face of the move that led here.
 skip_last:
         beqz  s5, skip_done            # depth 0 has no previous move
-        lbu   t0, -8(s6)             # (B7) the previous depth's face
-        lbu   t1, 8(s6)
-        bne   t0, t1, skip_done
-        addi  t1, t1, 1
-        sb    t1, 8(s6)
+        lbu   t0, -8(s6)               # the previous depth's face
+        bne   t0, a5, skip_done      # (V7)
+        addi  a5, a5, 1
 skip_done:
         ret
-
 # qturn: one quarter turn of face a2 applied to (a0, a1) = (p, o).
 # Indexes perm_base / orient_base by face, so no multiply by the block size.
 qturn:
