@@ -1,0 +1,4 @@
+# My test cases for the RV32I solver: solved, a short scramble, distance 11.
+12345671111111|
+51673422313211|R B2 D'
+54721631111111|D B' R' B' R2 B' D R B' R B2

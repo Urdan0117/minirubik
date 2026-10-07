@@ -2,7 +2,8 @@
 # a Ripes source: the search tables are appended from gen_tables.c.
 
         .data
-input:  .string "54721631111111"       # the state to solve
+input:  .string "12345671111111"       # the state to solve
+expected: .byte 11                     # optimal length; test.sh rewrites this
 perm:   .zero 7                        # cubie digits as 0..6
 
 # Register allocation:
@@ -260,6 +261,9 @@ c_space:
 c_done:
         or    a0, a0, a1
         bnez  a0, bad_path             # T5: the path must reach solved
+        la    t0, expected
+        lbu   t0, 0(t0)
+        bne  s4, t0, bad_length     # (T1) the length must match
         li    a0, 10                   # '\n'
         li    a7, 11
         ecall
@@ -268,6 +272,10 @@ c_done:
         ecall
 bad_path:
         li    a0, 1
+        li    a7, 93
+        ecall
+bad_length:
+        li    a0, 3                 # (T2) exit status for a wrong length
         li    a7, 93
         ecall
 bad_input:
