@@ -5,3 +5,4 @@ solver
 mini
 ida
 verify
+*.log

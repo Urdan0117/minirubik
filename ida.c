@@ -5,6 +5,7 @@
 
 static uint16_t perm_move[3][PERMUTATIONS], orient_move[3][ORIENTATIONS];
 static uint8_t perm_pdb[PERMUTATIONS];
+static uint8_t orient_pdb[ORIENTATIONS];
 static unsigned long long nodes;
 
 /* Factored quarter-turn tables, built the same way as in build_table. */
@@ -65,11 +66,34 @@ static void build_perm_pdb(void)
             break;
     }
 }
-
+static void build_orient_pdb(void)
+{
+    memset(orient_pdb, 0xFF, sizeof orient_pdb);
+    orient_pdb[0] = 0;                              /* (7) */
+    for (uint8_t d = 0;; ++d) {
+        int changed = 0;
+        for (uint16_t r = 0; r < ORIENTATIONS; ++r) {
+            if (orient_pdb[r] != d)                 /* (8) */
+                continue;
+            for (uint8_t f = 0; f < 3; ++f) {
+                uint16_t x = r;
+                for (uint8_t t = 0; t < 3; ++t) {
+                    x = orient_move[f][x];
+                    if (orient_pdb[x] == 0xFF) {
+                        orient_pdb[x] = d+1 ;          /* (9) */
+                        changed = 1;
+                    }
+                }
+            }
+        }
+        if (!changed)
+            break;
+    }
+}
 static uint8_t h(uint16_t p, uint16_t o)
 {
-    (void) o;                      /* first version: permutation PDB only */
-    return perm_pdb[p];
+    uint8_t hp = perm_pdb[p], ho = orient_pdb[o];
+    return hp>ho?hp:ho;
 }
 
 static int ida_star(uint16_t p0, uint16_t o0, uint8_t moves[11])
@@ -121,6 +145,7 @@ int main(int argc, char **argv)
     }
     build_transitions();
     build_perm_pdb();
+    build_orient_pdb();
 
     uint32_t r = rank_state(&s);
     uint8_t moves[11];

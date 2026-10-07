@@ -35,6 +35,7 @@ int main(void)
     clock_t start = clock();
     build_transitions();
     build_perm_pdb();
+    build_orient_pdb();
     build_distances();
 
     /* H2: every table fully populated, solved entry and maximum verified. */
@@ -43,13 +44,18 @@ int main(void)
         if (perm_pdb[r] == 0xFF) { printf("H2 FAIL: perm_pdb[%u] unset\n", r); return 1; }
         if (perm_pdb[r] > pmax) pmax = perm_pdb[r];
     }
+    uint8_t omax = 0;
+    for (uint16_t r = 0; r < ORIENTATIONS; ++r) {
+        if (orient_pdb[r] == 0xFF) { printf("H2 FAIL: orient_pdb[%u] unset\n", r); return 1; }
+        if (orient_pdb[r] > omax) omax = orient_pdb[r];
+    }
     uint8_t dmax = 0;
     for (uint32_t r = 0; r < STATES; ++r) {
         if (dist[r] == 0xFF) { printf("H2 FAIL: dist[%u] unset\n", r); return 1; }
         if (dist[r] > dmax) dmax = dist[r];
     }
-    printf("H2 pass: perm_pdb[0] = %u, max %u; exact distances max %u\n",
-           perm_pdb[0], pmax, dmax);
+    printf("H2 pass: perm_pdb[0] = %u, max %u; orient_pdb[0] = %u, max %u; exact distances max %u\n",
+           perm_pdb[0], pmax, orient_pdb[0], omax, dmax);
 
     /* H1: admissibility over every state. */
     for (uint32_t r = 0; r < STATES; ++r) {
@@ -65,7 +71,7 @@ int main(void)
     unsigned long long worst = 0, sum11 = 0;
     uint32_t worst_rank = 0, count11 = 0;
     for (uint32_t r = 0; r < STATES; ++r) {
-        uint16_t p = r / ORIENTATIONS, o = r % ORIENTATIONS;
+	uint16_t p = r / ORIENTATIONS, o = r % ORIENTATIONS;
         uint8_t moves[11];
         nodes = 0;
         int n = ida_star(p, o, moves);
