@@ -75,8 +75,9 @@ int main(int argc, char **argv)
     printf("# %d bytes of tables.\n",
            3 * (PERMUTATIONS + ORIENTATIONS) * 2 + PERMUTATIONS + ORIENTATIONS);
     /* The data before the tables (the input string, perm[]) can leave
-     * the location counter odd; .align 2 rounds it up to 4 bytes. */
-    printf("        .data\n        .align 2\n");
+     * the location counter odd. In Ripes, .align N aligns to N bytes
+     * (not 2^N as in GNU as), so .align 4 is what keeps .word aligned. */
+    printf("        .data\n        .align 4\n");
     for (int f = 0; f < 3; ++f) {
         snprintf(label, sizeof label, "perm_%s", face[f]);
         emit_half(label, perm_move[f], PERMUTATIONS);
@@ -91,7 +92,7 @@ int main(int argc, char **argv)
      * by indexing with the face instead of multiplying by the block size.
      * Ripes resolves a label in .word only if it is already defined, so
      * these have to come after the tables. */
-    printf("        .align 2\n");
+    printf("        .align 4\n");
     printf("perm_base:\n        .word perm_R, perm_B, perm_D\n");
     printf("orient_base:\n        .word orient_R, orient_B, orient_D\n");
     return 0;

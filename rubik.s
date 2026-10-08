@@ -2,8 +2,8 @@
 # a Ripes source: the search tables are appended from gen_tables.c.
 
         .data
-input:  .string "51673422313211"       # the state to solve
-expected: .byte 3                     # optimal length; test.sh rewrites this
+input:  .string "21345671111111"       # the state to solve
+expected: .byte 11                    # optimal length; test.sh rewrites this
 perm:   .zero 7                        # cubie digits as 0..6
 
 # Register allocation:
@@ -438,7 +438,7 @@ r_wait:
         .data
 face_name:   .byte 82, 66, 68          # 'R', 'B', 'D'
 turn_name:   .byte 0, 0, 50, 39        # by turn count: -, none, '2', '\''
-        .align 2
+        .align 4
 frames:      .zero 192                 # 12 depths x 16 bytes
 
 
@@ -496,7 +496,7 @@ tw_tab:
 r_perm:  .zero 7
 r_twist: .zero 7
 r_tmp:   .zero 14
-        .align 2
+        .align 4
 palette:
         .word 0xFFFF00                 # U yellow
         .word 0xFFFFFF                 # D white
