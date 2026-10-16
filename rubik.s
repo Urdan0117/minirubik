@@ -219,34 +219,34 @@ h_done:
 # The frames hold the moves: at each depth below the solution length,
 # face and turn are the move that led one level down.
 b_found:
-        mv    s4, s5                   # solution length
+        mv    s4, s5                   # (C1) solution length = the depth reached
         #@render-begin
         jal   r_init                   # draw the input state
         #@render-end
-        mv    a0, s1                   # replay from the input state
-        mv    a1, s2
-        mv    s6, s7
+        mv    a0, s1                   # (C2) replay from the input state:
+        mv    a1, s2                   #      its p and o
+        mv    s6, s7                   # back to depth 0's frame
         li    s5, 0
 c_level:
-        beq   s5, s4, c_done
+        beq   s5, s4, c_done           # (C3) every move replayed: go check
         lbu   a2, 8(s6)                # face
-        lbu   s3, 9(s6)                # quarter turns
+        lbu   s3, 9(s6)                # (C4) quarter turns
 c_turn:
         jal   qturn
         #@render-begin
         jal   r_qturn                  # turn the renderer's copy too
         #@render-end
         addi  s3, s3, -1
-        bnez  s3, c_turn
+        bnez  s3, c_turn               # (C5) more quarter turns of this move
         #@render-begin
         jal   r_show                   # one frame per move
         #@render-end
         mv    t5, a0                   # keep the state across the prints
         mv    t6, a1
         la    t0, face_name
-        add   t0, t0, a2
+        add   t0, t0, a2               # (C6) index the face letter
         lbu   a0, 0(t0)
-        li    a7, 11                   # PrintChar
+        li    a7, 11                   # (C7) PrintChar
         ecall
         lbu   t1, 9(s6)
         la    t0, turn_name
@@ -260,11 +260,11 @@ c_space:
         mv    a0, t5
         mv    a1, t6
         addi  s5, s5, 1
-        addi  s6, s6, 16
+        addi  s6, s6, 16               # (C8) the next depth's frame
         j     c_level
 c_done:
         or    a0, a0, a1
-        bnez  a0, bad_path             # T5: the path must reach solved
+        bnez  a0, bad_path             # (C9) T5: the path must reach solved
         la    t0, expected
         lbu   t0, 0(t0)
         bne  s4, t0, bad_length     # (T1) the length must match
@@ -275,7 +275,7 @@ c_done:
         li    a7, 93                   # Exit with status 0
         ecall
 bad_path:
-        li    a0, 1
+        li    a0, 1                 # (C10) exit status when T5 fails
         li    a7, 93
         ecall
 bad_length:
