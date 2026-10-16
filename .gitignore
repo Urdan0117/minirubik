@@ -8,3 +8,4 @@ verify
 *.log
 gen_tables
 build/
+verify_v2
